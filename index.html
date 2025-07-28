@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>BelluGames - Dots and Boxes</title>
+    <style>
+        /* CSS is identical to previous answers */
+        :root{--bg-color:#1a1a1a;--text-color:#ffffff;--hint-color:#8e8e93;--button-color:#007aff;--button-text-color:#ffffff;--dot-color:#555;--grid-line-color:#333;--hover-line-color:rgba(255,255,255,0.3);--player1-color:#0088cc;--player2-color:#f44336;--player1-box-color:rgba(0,136,204,0.5);--player2-box-color:rgba(244,67,54,0.5);--error-color:#ffcc00}body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;background-color:var(--bg-color);color:var(--text-color);margin:0;padding:20px;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;box-sizing:border-box}.view{display:none;width:100%;max-width:500px;flex-direction:column;align-items:center}h1,h2{text-align:center}input[type=text],input[type=password]{width:100%;padding:12px;margin-bottom:15px;border:1px solid var(--grid-line-color);border-radius:8px;background-color:#333;color:var(--text-color);font-size:1em;box-sizing:border-box}button{width:100%;padding:12px;border:none;border-radius:8px;background-color:var(--button-color);color:var(--button-text-color);font-size:1.1em;font-weight:700;cursor:pointer;margin-top:10px}button:hover{opacity:.9}.secondary-button{background-color:#555}.error-text{color:var(--player2-color);text-align:center;min-height:1.2em}a{color:var(--button-color);text-decoration:none}#game-container{display:flex;flex-direction:column;align-items:center;width:100%}#status-bar{width:100%;display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}.player-score{padding:8px 16px;border-radius:12px;font-size:1.5em;font-weight:700;transition:transform .2s,box-shadow .2s}.player-score.player1{background-color:var(--player1-color);color:#fff}.player-score.player2{background-color:var(--player2-color);color:#fff}.player-score.active{transform:scale(1.1);box-shadow:0 0 15px currentColor}#turn-info{font-size:1.2em;font-weight:500;text-align:center;margin-top:10px;color:var(--hint-color);height:30px}#game-canvas{background-color:transparent;cursor:pointer;touch-action:none;user-select:none;-webkit-tap-highlight-color:transparent}#lobby-games{list-style:none;padding:0;width:100%;margin-top:20px;max-height:30vh;overflow-y:auto}#lobby-games li{background-color:#2c2c2e;padding:15px;margin-bottom:10px;border-radius:8px;display:flex;justify-content:space-between;align-items:center}#connection-error-view .error-box{border:1px solid var(--error-color);border-radius:8px;background-color:rgba(255,204,0,.1);padding:20px;text-align:left}#connection-error-view h3{color:var(--error-color);margin-top:0}#connection-error-view p{font-size:.9em;margin:10px 0}#connection-error-view ol{font-size:.8em;padding-left:20px}.password-container{margin-top:15px;padding:10px;background-color:#333;border-radius:6px;text-align:center}.password-display{font-family:monospace;font-size:1.2em;color:#76ff03;word-break:break-all;margin-bottom:10px}.copy-btn{padding:8px 12px;font-size:.9em;width:auto}
+    </style>
+</head>
+<body>
+
+    <!-- All HTML views are identical to the previous answer -->
+    <div id="loading-view" class="view" style="display:flex;"> <h2>Connecting to BelluGames...</h2> </div>
+    <div id="register-view" class="view"> <h1>Create Account</h1> <form id="register-form"> <input type="text" id="register-username" placeholder="Username (min 3 chars)" required> <input type="password" id="register-password" placeholder="Password (min 6 chars)" required> <button type="submit">Register</button> </form> <p id="register-error" class="error-text"></p> <p>Already have an account? <a href="#" onclick="app.showView('login-view')">Login here</a>.</p> </div>
+    <div id="login-view" class="view"> <h1>Login to BelluGames</h1> <form id="login-form"> <input type="text" id="login-username" placeholder="Username" required> <input type="password" id="login-password" placeholder="Password" required> <button type="submit">Login</button> </form> <p id="login-error" class="error-text"></p> <p>No account? <a href="#" onclick="app.showView('register-view')">Register here</a>.</p> </div>
+    <div id="dashboard-view" class="view"> <h1 id="welcome-message">Welcome!</h1> <button id="logout-btn" class="secondary-button">Logout</button> <hr style="width:100%; border-color:#333; margin: 20px 0;"> <h2>Game Lobby</h2> <button id="create-game-btn">Create New Game</button> <ul id="lobby-games"></ul> <button id="refresh-lobby-btn" class="secondary-button">Refresh Lobby</button> </div>
+    <div id="game-view" class="view"> <div id="game-container"> <div id="status-bar"> <div id="p1-score" class="player-score player1">P1: 0</div> <div id="p2-score" class="player-score player2">P2: 0</div> </div> <canvas id="game-canvas"></canvas> <div id="turn-info">Loading game...</div> <button id="exit-game-btn" class="secondary-button">Exit Game</button> </div> </div>
+    <div id="connection-error-view" class="view"> <div class="error-box"> <h3>Connection Issue: Action Required</h3> <p>Could not connect to the game server. This can happen if the server is restarting. You may need to perform a one-time unlock.</p> <p><strong>Please follow these steps exactly:</strong></p> <ol> <li>Click the button below to open the server page.</li> <li>Copy the password provided below.</li> <li>Paste the password onto that new webpage and submit. It should show "404 not found" if successful.</li> <li>Return to this page; it will attempt to reconnect automatically.</li> </ol> <button id="open-server-btn">1. Open Server Page</button> <div class="password-container"> <p>2. Your one-time password is:</p> <div id="tunnel-password-display" class="password-display">Fetching...</div> <button id="copy-password-btn" class="copy-btn">Click to Copy Password</button> </div> </div> </div>
+
+    <script>
+    // ===================================================================
+    //  BELLUGAMES SPA (SINGLE PAGE APPLICATION) SCRIPT - FINAL VERSION
+    // ===================================================================
+    
+    const app = {
+        // CRITICAL: Update this to your chosen fixed subdomain from server.py
+        API_BASE_URL: "https://my-super-unique-bellugames-server.loca.lt",
+        
+        token: null, currentUser: null, currentGameCode: null, gameState: {},
+        gameLoopInterval: null, connectionErrorInterval: null,
+        
+        showView(viewId) {
+            document.querySelectorAll('.view').forEach(v => v.style.display = 'none');
+            document.getElementById(viewId).style.display = 'flex';
+        },
+        
+        init() {
+            this.token = localStorage.getItem('jwt_token');
+            if (this.token) {
+                this.verifyTokenAndLogin();
+            } else {
+                this.showView('login-view');
+            }
+            this.setupEventListeners();
+            dotsAndBoxes.initCanvas();
+        },
+        
+        async verifyTokenAndLogin() {
+            try {
+                const response = await this.apiRequest('/api/me');
+                this.currentUser = response.user;
+                this.showView('dashboard-view');
+                this.updateDashboard();
+            } catch (e) {
+                // This catch block will trigger showConnectionErrorView if the server is down on startup
+                this.logout(); // Also logs out if token is just invalid
+            }
+        },
+
+        logout() {
+            /* ... identical to previous ... */
+        },
+        updateDashboard() { /* ... identical to previous ... */ },
+        async refreshLobby() { /* ... identical to previous ... */ },
+        async createGame() { /* ... identical to previous ... */ },
+        async joinGame(roomCode) { /* ... identical to previous ... */ },
+        startGame(roomCode) {
+            this.stopErrorCheck(); // Stop checking for errors once a game starts
+            /* ... identical to previous ... */
+        },
+        exitGame() { /* ... identical to previous ... */ },
+        
+        async fetchGameState() {
+            if (!this.currentGameCode) return;
+            try {
+                // This is now the main fetch call wrapped in our new apiRequest helper
+                const newState = await this.apiRequest(`/api/games/${this.currentGameCode}`);
+                
+                // If we were in an error state, but the connection is now OK, hide the error view
+                if (document.getElementById('connection-error-view').style.display === 'flex') {
+                    this.showView('game-view');
+                    this.stopErrorCheck();
+                }
+
+                if (JSON.stringify(this.gameState) !== JSON.stringify(newState)) {
+                    this.gameState = newState;
+                    dotsAndBoxes.updateUI();
+                    dotsAndBoxes.redrawCanvas();
+                }
+            } catch (error) {
+                // This will be caught by the apiRequest helper, which shows the error view
+                // We don't need to do anything extra here.
+            }
+        },
+        
+        // NEW: Centralized API request handler with built-in error handling
+        async apiRequest(endpoint, options = {}) {
+            try {
+                const defaultHeaders = { 'Content-Type': 'application/json' };
+                if (this.token) {
+                    defaultHeaders['Authorization'] = `Bearer ${this.token}`;
+                }
+                
+                const response = await fetch(this.API_BASE_URL + endpoint, {
+                    ...options,
+                    headers: { ...defaultHeaders, ...options.headers }
+                });
+
+                if (response.status === 401) { // Unauthorized
+                    this.logout();
+                    throw new Error("Unauthorized");
+                }
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+                }
+                
+                // Stop any active error checking if a request succeeds
+                this.stopErrorCheck(); 
+                if (document.getElementById('connection-error-view').style.display === 'flex') {
+                    this.showView('loading-view'); // Go to a neutral view while we figure out where to go next
+                    this.verifyTokenAndLogin(); // Re-verify login state
+                }
+
+                return response.json();
+
+            } catch (err) {
+                console.error(`API request to ${endpoint} failed:`, err);
+                this.showConnectionErrorView();
+                throw err; // Re-throw the error so calling functions know it failed
+            }
+        },
+
+        async showConnectionErrorView() {
+            this.showView('connection-error-view');
+            // Try to fetch the live tunnel info as a fallback
+            try {
+                const infoResponse = await fetch(this.API_BASE_URL + '/api/tunnel-info');
+                const tunnelInfo = await infoResponse.json();
+                
+                document.getElementById('open-server-btn').onclick = () => window.open(tunnelInfo.url, '_blank');
+                const passwordDisplay = document.getElementById('tunnel-password-display');
+                passwordDisplay.textContent = tunnelInfo.password;
+                document.getElementById('copy-password-btn').onclick = () => dotsAndBoxes.copyToClipboard(tunnelInfo.password);
+                
+                // Start polling to see if the connection comes back
+                if (!this.connectionErrorInterval) {
+                   this.connectionErrorInterval = setInterval(() => {
+                        console.log("Retrying connection from error view...");
+                        this.verifyTokenAndLogin(); // This will try to connect and redirect on success
+                   }, 3000);
+                }
+
+            } catch (e) {
+                document.getElementById('tunnel-password-display').textContent = 'UNAVAILABLE';
+                console.error("Could not even fetch tunnel-info. Server is likely completely down.");
+            }
+        },
+        
+        stopErrorCheck() {
+            if (this.connectionErrorInterval) {
+                clearInterval(this.connectionErrorInterval);
+                this.connectionErrorInterval = null;
+            }
+        },
+
+        // Event Listeners now use the apiRequest helper
+        setupEventListeners() {
+            document.getElementById('register-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const username = document.getElementById('register-username').value;
+                const password = document.getElementById('register-password').value;
+                const errorEl = document.getElementById('register-error');
+                try {
+                    await this.apiRequest('/api/register', {
+                        method: 'POST',
+                        body: JSON.stringify({ username, password })
+                    });
+                    alert('Registration successful! Please login.');
+                    this.showView('login-view');
+                } catch (err) {
+                    errorEl.textContent = err.message || 'Server connection error.';
+                }
+            });
+            document.getElementById('login-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const username = document.getElementById('login-username').value;
+                const password = document.getElementById('login-password').value;
+                const errorEl = document.getElementById('login-error');
+                try {
+                    const data = await this.apiRequest('/api/login', {
+                        method: 'POST',
+                        body: JSON.stringify({ username, password })
+                    });
+                    this.token = data.token;
+                    localStorage.setItem('jwt_token', data.token);
+                    this.verifyTokenAndLogin();
+                } catch (err) {
+                    errorEl.textContent = err.message || 'Server connection error.';
+                }
+            });
+            
+            document.getElementById('logout-btn').onclick = () => this.logout();
+            document.getElementById('create-game-btn').onclick = () => this.createGame();
+            document.getElementById('refresh-lobby-btn').onclick = () => this.refreshLobby();
+            document.getElementById('exit-game-btn').onclick = () => this.exitGame();
+        }
+    };
+    
+    // The dotsAndBoxes object and its methods are identical to the previous answer.
+    const dotsAndBoxes = { /* ... paste the full object here ... */ };
+    
+    document.addEventListener('DOMContentLoaded', () => { app.init(); });
+    </script>
+</body>
+</html>
